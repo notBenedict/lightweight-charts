@@ -1,4 +1,4 @@
-import { fillRectInnerBorder } from '../helpers/canvas-helpers';
+import { strokeRectInnerWithFill } from '../helpers/canvas-helpers';
 
 import { SeriesItemsIndexesRange } from '../model/time-data';
 
@@ -79,10 +79,8 @@ export class PaneRendererCandlesticks implements IPaneRenderer {
 		let prevWickColor = '';
 
 		let wickWidth = Math.min(Math.floor(pixelRatio), Math.floor(this._data.barSpacing * pixelRatio));
-		wickWidth = Math.max(Math.floor(pixelRatio), Math.min(wickWidth, this._barWidth));
+		wickWidth = Math.min(wickWidth, this._barWidth);
 		const wickOffset = Math.floor(wickWidth * 0.5);
-
-		let prevEdge: number | null = null;
 
 		for (let i = visibleRange.from; i < visibleRange.to; i++) {
 			const bar = bars[i];
@@ -99,18 +97,8 @@ export class PaneRendererCandlesticks implements IPaneRenderer {
 
 			const scaledX = Math.round(pixelRatio * bar.x);
 
-			let left = scaledX - wickOffset;
-			const right = left + wickWidth - 1;
-			if (prevEdge !== null) {
-				left = Math.max(prevEdge + 1, left);
-				left = Math.min(left, right);
-			}
-			const width = right - left + 1;
-
-			ctx.fillRect(left, high, width, top - high);
-			ctx.fillRect(left, bottom + 1, width, low - bottom);
-
-			prevEdge = right;
+			ctx.fillRect(scaledX - wickOffset, high, wickWidth, top - high);
+			ctx.fillRect(scaledX - wickOffset, bottom + 1, wickWidth, low - bottom);
 		}
 	}
 
@@ -119,22 +107,17 @@ export class PaneRendererCandlesticks implements IPaneRenderer {
 		if (this._barWidth <= 2 * borderWidth) {
 			borderWidth = Math.floor((this._barWidth - 1) * 0.5);
 		}
-		const res = Math.max(Math.floor(pixelRatio), borderWidth);
+		const res = Math.max(1, borderWidth);
 		if (this._barWidth <= res * 2) {
 			// do not draw bodies, restore original value
-			return Math.max(Math.floor(pixelRatio), Math.floor(Constants.BarBorderWidth * pixelRatio));
+			return Math.floor(Constants.BarBorderWidth * pixelRatio);
 		}
 		return res;
 	}
 
 	private _drawBorder(ctx: CanvasRenderingContext2D, bars: readonly CandlestickItem[], visibleRange: SeriesItemsIndexesRange, barSpacing: number, pixelRatio: number): void {
-		if (this._data === null) {
-			return;
-		}
-		let prevBorderColor: string | undefined = '';
+		let prevBorderColor = '';
 		const borderWidth = this._calculateBorderWidth(pixelRatio);
-
-		let prevEdge: number | null = null;
 
 		for (let i = visibleRange.from; i < visibleRange.to; i++) {
 			const bar = bars[i];
@@ -143,24 +126,17 @@ export class PaneRendererCandlesticks implements IPaneRenderer {
 				prevBorderColor = bar.borderColor;
 			}
 
-			let left = Math.round(bar.x * pixelRatio) - Math.floor(this._barWidth * 0.5);
-			// this is important to calculate right before patching left
+			const left = Math.round(bar.x * pixelRatio) - Math.floor(this._barWidth * 0.5);
 			const right = left + this._barWidth - 1;
 
 			const top = Math.round(Math.min(bar.openY, bar.closeY) * pixelRatio);
 			const bottom = Math.round(Math.max(bar.openY, bar.closeY) * pixelRatio);
 
-			if (prevEdge !== null) {
-				left = Math.max(prevEdge + 1, left);
-				left = Math.min(left, right);
-			}
-			if (this._data.barSpacing * pixelRatio > 2 * borderWidth) {
-				fillRectInnerBorder(ctx, left, top, right - left + 1, bottom - top + 1, borderWidth);
+			if (barSpacing > 2 * borderWidth) {
+				strokeRectInnerWithFill(ctx, left, top, right - left + 1, bottom - top + 1, borderWidth);
 			} else {
-				const width = right - left + 1;
-				ctx.fillRect(left, top, width, bottom - top + 1);
+				ctx.fillRect(left, top, right - left + 1, bottom - top + 1);
 			}
-			prevEdge = right;
 		}
 	}
 
@@ -175,18 +151,11 @@ export class PaneRendererCandlesticks implements IPaneRenderer {
 
 		for (let i = visibleRange.from; i < visibleRange.to; i++) {
 			const bar = bars[i];
-
 			let top = Math.round(Math.min(bar.openY, bar.closeY) * pixelRatio);
 			let bottom = Math.round(Math.max(bar.openY, bar.closeY) * pixelRatio);
 
 			let left = Math.round(bar.x * pixelRatio) - Math.floor(this._barWidth * 0.5);
 			let right = left + this._barWidth - 1;
-
-			if (bar.color !== prevBarColor) {
-				const barColor = bar.color;
-				ctx.fillStyle = barColor;
-				prevBarColor = barColor;
-			}
 
 			if (this._data.borderVisible) {
 				left += borderWidth;
@@ -198,6 +167,13 @@ export class PaneRendererCandlesticks implements IPaneRenderer {
 			if (top > bottom) {
 				continue;
 			}
+
+			if (bar.color !== prevBarColor) {
+				const barColor = bar.color;
+				ctx.fillStyle = barColor;
+				prevBarColor = barColor;
+			}
+
 			ctx.fillRect(left, top, right - left + 1, bottom - top + 1);
 		}
 	}

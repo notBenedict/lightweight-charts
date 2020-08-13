@@ -133,9 +133,11 @@ function toInternalOptions(options: DeepPartial<ChartOptions>): DeepPartial<Char
 	return options as DeepPartial<ChartOptionsInternal>;
 }
 
-export type IPriceScaleApiProvider = Pick<IChartApi, 'priceScale'>;
+export interface IPriceScaleApiProvider {
+	priceScale(id: string): IPriceScaleApi;
+}
 
-export class ChartApi implements IChartApi, DataUpdatesConsumer<SeriesType> {
+export class ChartApi implements IChartApi, IPriceScaleApiProvider, DataUpdatesConsumer<SeriesType> {
 	private _chartWidget: ChartWidget;
 	private _dataLayer: DataLayer = new DataLayer();
 	private readonly _seriesMap: Map<SeriesApi<SeriesType>, Series> = new Map();
@@ -307,9 +309,9 @@ export class ChartApi implements IChartApi, DataUpdatesConsumer<SeriesType> {
 	public priceScale(priceScaleId?: string): IPriceScaleApi {
 		if (priceScaleId === undefined) {
 			warn('Using ChartApi.priceScale() method without arguments has been deprecated, pass valid price scale id instead');
-			priceScaleId = this._chartWidget.model().defaultVisiblePriceScaleId();
 		}
 
+		priceScaleId = priceScaleId || this._chartWidget.model().defaultVisiblePriceScaleId();
 		return new PriceScaleApi(this._chartWidget, priceScaleId);
 	}
 
